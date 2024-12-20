@@ -3,9 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Weeks Left to Live</title>
+    <title>Weeks Left to Live with Energy Levels</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="description" content="Calculate how many weeks you have left to live based on your age, expected lifespan, and current energy levels. Discover how much time remains in terms of weeks with this easy-to-use life expectancy calculator.">
+    <meta name="keywords" content="life expectancy calculator, how long will I live in weeks, energy levels calculator, remaining life calculator, life span calculator, energy left in weeks">
+    <meta name="robots" content="index, follow">
+    <meta property="og:title" content="How Long I Would Live in Weeks Calculator with Available Energy Levels Left in Weeks">
+    <meta property="og:description" content="Use this simple calculator to determine how many weeks you have left to live based on your current age, expected lifespan, and available energy levels. Get a clearer picture of your remaining time.">
+    <meta property="og:url" content="https://67654b9bad768055a6744eda--howlongdoihave.netlify.app">
+    <meta name="twitter:title" content="How Long I Would Live in Weeks Calculator">
+    <meta name="twitter:description" content="Calculate the number of weeks you have left to live and how much energy you have remaining with this life expectancy and energy level calculator.">
 </head>
 <body class="bg-gray-100 text-gray-800">
 <div id="app" class="min-h-screen flex items-center justify-center px-4">
@@ -40,13 +48,22 @@
                     type="submit"
                     class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-300"
             >
-                Recalculate Weeks
+                How Long I would Live?
             </button>
         </form>
-        <div v-if="weeksLeft !== null" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
+        <div v-if="weeksLeft !== null" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <p class="text-lg font-medium text-gray-700">
                 You have approximately <span class="text-blue-600 font-bold">{{ weeksLeft }}</span> weeks left to live.
             </p>
+            <div class="mt-4 space-y-2">
+                <p><strong>Breakdown by Energy Levels:</strong></p>
+                <ul class="list-disc list-inside text-gray-600">
+                    <li><span class="text-green-600">High Energy (0–35 years):</span> {{ energyLevels.high }} weeks</li>
+                    <li><span class="text-yellow-600">Medium Energy (36–50 years):</span> {{ energyLevels.medium }} weeks</li>
+                    <li><span class="text-orange-600">Low Energy (51–65 years):</span> {{ energyLevels.low }} weeks</li>
+                    <li><span class="text-red-600">Very Low Energy (66+ years):</span> {{ energyLevels.veryLow }} weeks</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
@@ -55,43 +72,58 @@
     const app = Vue.createApp({
         data() {
             return {
-                birthYear: localStorage.getItem('birthYear') || 1990, // Default to 1990 if not in local storage
+                birthYear: localStorage.getItem('birthYear') || 1990, // Default birth year
                 expectedAge: 76, // Default lifespan
-                weeksLeft: null, // Calculated weeks left
+                weeksLeft: null, // Total calculated weeks left
+                energyLevels: { // Weeks for each energy level
+                    high: 0,
+                    medium: 0,
+                    low: 0,
+                    veryLow: 0
+                }
             };
         },
         methods: {
             calculateWeeks() {
-                // Ensure valid inputs before calculation
                 if (this.birthYear && this.expectedAge) {
                     const today = new Date();
                     const currentYear = today.getFullYear();
+                    const currentAge = currentYear - this.birthYear;
+                    const totalWeeks = (this.expectedAge - currentAge) * 52;
 
-                    // Calculate the end-of-life date
-                    const endDate = new Date(
-                        parseInt(this.birthYear) + parseInt(this.expectedAge),
-                        today.getMonth(),
-                        today.getDate()
-                    );
+                    this.weeksLeft = Math.max(totalWeeks, 0);
 
-                    // Calculate the difference in milliseconds between endDate and today
-                    const millisecondsLeft = endDate - today;
-
-                    // Convert milliseconds to weeks
-                    const weeksLeft = Math.floor(millisecondsLeft / (1000 * 60 * 60 * 24 * 7));
-
-                    // Store the calculated weeks, ensuring the value isn't negative
-                    this.weeksLeft = Math.max(weeksLeft, 0);
-
-                    // Save birthYear in local storage for future use
+                    this.energyLevels = this.calculateEnergyLevels(currentAge, this.expectedAge);
                     localStorage.setItem('birthYear', this.birthYear);
                 }
             },
+            calculateEnergyLevels(currentAge, expectedAge) {
+                const weeksPerYear = 52;
+                const ageRanges = {
+                    high: [0, 35],
+                    medium: [36, 50],
+                    low: [51, 65],
+                    veryLow: [66, expectedAge]
+                };
+
+                const energyWeeks = { high: 0, medium: 0, low: 0, veryLow: 0 };
+
+                for (const [key, range] of Object.entries(ageRanges)) {
+                    const startAge = Math.max(currentAge, range[0]);
+                    const endAge = Math.min(range[1], expectedAge);
+
+                    if (startAge <= endAge) {
+                        const yearsInRange = endAge - startAge + 1;
+                        energyWeeks[key] = yearsInRange * weeksPerYear;
+                    }
+                }
+
+                return energyWeeks;
+            }
         },
         mounted() {
-            // Automatically calculate weeks left on page load
-            this.calculateWeeks();
-        },
+            this.calculateWeeks(); // Auto-calculate on page load
+        }
     });
 
     app.mount('#app');
