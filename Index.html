@@ -23,13 +23,12 @@
         </h1>
         <form @submit.prevent="calculateWeeks" class="space-y-4">
             <div>
-                <label for="birth-year" class="block text-sm font-medium text-gray-600">Your Birth Year</label>
+                <label for="birth-date" class="block text-sm font-medium text-gray-600">Your Birth Date</label>
                 <input
-                        type="number"
-                        v-model="birthYear"
-                        id="birth-year"
+                        type="date"
+                        v-model="birthDate"
+                        id="birth-date"
                         class="mt-1 w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring focus:ring-blue-300"
-                        placeholder="Enter your birth year"
                         required
                 />
             </div>
@@ -44,24 +43,34 @@
                 />
                 <small class="text-gray-500">Default: 76 years</small>
             </div>
-            <button
-                    type="submit"
-                    class="w-full bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring focus:ring-blue-300"
-            >
-                How Long I would Live?
-            </button>
         </form>
         <div v-if="weeksLeft !== null" class="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
             <p class="text-lg font-medium text-gray-700">
-                You have approximately <span class="text-blue-600 font-bold">{{ weeksLeft }}</span> weeks left to live.
+                You have approximately <span class="text-blue-600 font-bold">{{ displayWeeksAndDays(weeksLeft) }}</span> left in the expected lifespan.
             </p>
-            <div class="mt-4 space-y-2">
+            <div class="mt-4">
+                <p><strong>Remaining Time:</strong></p>
+                <p class="text-green-600 text-lg font-bold">{{ formattedRemainingTime }}</p>
+            </div>
+            <div class="mt-4">
                 <p><strong>Breakdown by Energy Levels:</strong></p>
                 <ul class="list-disc list-inside text-gray-600">
-                    <li><span class="text-green-600">High Energy (0–35 years):</span> {{ energyLevels.high }} weeks</li>
-                    <li><span class="text-yellow-600">Medium Energy (36–50 years):</span> {{ energyLevels.medium }} weeks</li>
-                    <li><span class="text-orange-600">Low Energy (51–65 years):</span> {{ energyLevels.low }} weeks</li>
-                    <li><span class="text-red-600">Very Low Energy (66+ years):</span> {{ energyLevels.veryLow }} weeks</li>
+                    <li v-if="energyLevels.high > 0">
+                        <span class="text-green-600">High Energy (0–35 years):</span>
+                        {{ displayWeeksAndDays(energyLevels.high) }}
+                    </li>
+                    <li v-if="energyLevels.medium > 0">
+                        <span class="text-yellow-600">Medium Energy (36–50 years):</span>
+                        {{ displayWeeksAndDays(energyLevels.medium) }}
+                    </li>
+                    <li v-if="energyLevels.low > 0">
+                        <span class="text-orange-600">Low Energy (51–65 years):</span>
+                        {{ displayWeeksAndDays(energyLevels.low) }}
+                    </li>
+                    <li v-if="energyLevels.veryLow > 0">
+                        <span class="text-red-600">Very Low Energy (66+ years):</span>
+                        {{ displayWeeksAndDays(energyLevels.veryLow) }}
+                    </li>
                 </ul>
             </div>
         </div>
@@ -72,7 +81,7 @@
     const app = Vue.createApp({
         data() {
             return {
-                birthYear: localStorage.getItem('birthYear') || 1990, // Default birth year
+                birthDate: localStorage.getItem('birthDate') || '1990-01-01', // Default birth date
                 expectedAge: 76, // Default lifespan
                 weeksLeft: null, // Total calculated weeks left
                 energyLevels: { // Weeks for each energy level
@@ -80,21 +89,47 @@
                     medium: 0,
                     low: 0,
                     veryLow: 0
+                },
+                countdown: { // Countdown timer components
+                    years: 0,
+                    months: 0,
+                    days: 0,
+                    hours: 0,
+                    minutes: 0,
+                    seconds: 0
                 }
             };
         },
+        computed: {
+            formattedRemainingTime() {
+                const parts = [];
+                if (this.countdown.years > 0) parts.push(`${this.countdown.years} years`);
+                if (this.countdown.months > 0) parts.push(`${this.countdown.months} months`);
+                if (this.countdown.days > 0) parts.push(`${this.countdown.days} days`);
+                if (this.countdown.hours > 0) parts.push(`${this.countdown.hours} hours`);
+                if (this.countdown.minutes > 0) parts.push(`${this.countdown.minutes} minutes`);
+                if (this.countdown.seconds > 0) parts.push(`${this.countdown.seconds} seconds`);
+                return parts.join(', ');
+            }
+        },
         methods: {
             calculateWeeks() {
-                if (this.birthYear && this.expectedAge) {
+                if (this.birthDate && this.expectedAge) {
                     const today = new Date();
-                    const currentYear = today.getFullYear();
-                    const currentAge = currentYear - this.birthYear;
-                    const totalWeeks = (this.expectedAge - currentAge) * 52;
+                    const birthDate = new Date(this.birthDate);
+                    const endDate = new Date(birthDate);
+                    endDate.setFullYear(birthDate.getFullYear() + parseInt(this.expectedAge));
+
+                    const timeDiff = endDate - today;
+                    const totalWeeks = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
 
                     this.weeksLeft = Math.max(totalWeeks, 0);
 
+                    const currentAge = (today - birthDate) / (365.25 * 24 * 60 * 60 * 1000);
                     this.energyLevels = this.calculateEnergyLevels(currentAge, this.expectedAge);
-                    localStorage.setItem('birthYear', this.birthYear);
+
+                    this.updateCountdown(endDate);
+                    localStorage.setItem('birthDate', this.birthDate);
                 }
             },
             calculateEnergyLevels(currentAge, expectedAge) {
@@ -113,16 +148,35 @@
                     const endAge = Math.min(range[1], expectedAge);
 
                     if (startAge <= endAge) {
-                        const yearsInRange = endAge - startAge + 1;
-                        energyWeeks[key] = yearsInRange * weeksPerYear;
+                        const yearsInRange = endAge - startAge;
+                        energyWeeks[key] = Math.max(yearsInRange * weeksPerYear, 0);
                     }
                 }
 
                 return energyWeeks;
+            },
+            displayWeeksAndDays(weeks) {
+                const days = Math.floor((weeks % 1) * 7);
+                return `${Math.floor(weeks)} weeks${days > 0 ? ` and ${days} days` : ''}`;
+            },
+            updateCountdown(endDate) {
+                const now = new Date();
+                const diff = endDate - now;
+
+                this.countdown.years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
+                this.countdown.months = Math.floor(diff % (365.25 * 24 * 60 * 60 * 1000) / (30.44 * 24 * 60 * 60 * 1000));
+                this.countdown.days = Math.floor(diff % (30.44 * 24 * 60 * 60 * 1000) / (24 * 60 * 60 * 1000));
+                this.countdown.hours = Math.floor(diff % (24 * 60 * 60 * 1000) / (60 * 60 * 1000));
+                this.countdown.minutes = Math.floor(diff % (60 * 60 * 1000) / (60 * 1000));
+                this.countdown.seconds = Math.floor(diff % (60 * 1000) / 1000);
+            },
+            autoUpdate() {
+                this.calculateWeeks();
+                setInterval(() => this.calculateWeeks(), 1000);
             }
         },
         mounted() {
-            this.calculateWeeks(); // Auto-calculate on page load
+            this.autoUpdate();
         }
     });
 
