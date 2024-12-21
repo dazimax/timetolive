@@ -87,7 +87,7 @@
         data() {
             return {
                 birthDate: localStorage.getItem('birthDate') || '1990-01-01', // Default birth date
-                expectedAge: 76, // Default lifespan
+                expectedAge: localStorage.getItem('expectedAge') || 76, // Default lifespan
                 weeksLeft: null, // Total calculated weeks left
                 energyLevels: { // Weeks for each energy level
                     high: 0,
@@ -135,6 +135,7 @@
 
                     this.updateCountdown(endDate);
                     localStorage.setItem('birthDate', this.birthDate);
+                    localStorage.setItem('expectedAge', this.expectedAge);
                 }
             },
             calculateEnergyLevels(currentAge, expectedAge) {
