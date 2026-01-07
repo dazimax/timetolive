@@ -135,12 +135,13 @@
                     endDate.setFullYear(birthDate.getFullYear() + parseInt(this.expectedAge));
 
                     const timeDiff = endDate - today;
-                    const totalWeeks = Math.floor(timeDiff / (7 * 24 * 60 * 60 * 1000));
+                    const totalWeeks = timeDiff / (7 * 24 * 60 * 60 * 1000);
 
                     this.weeksLeft = Math.max(totalWeeks, 0);
 
+                    // Calculate current age in years (with decimal precision)
                     const currentAge = (today - birthDate) / (365.25 * 24 * 60 * 60 * 1000);
-                    this.energyLevels = this.calculateEnergyLevels(currentAge, this.expectedAge);
+                    this.energyLevels = this.calculateEnergyLevels(currentAge, parseFloat(this.expectedAge));
 
                     this.updateCountdown(endDate);
                     localStorage.setItem('birthDate', this.birthDate);
@@ -148,7 +149,7 @@
                 }
             },
             calculateEnergyLevels(currentAge, expectedAge) {
-                const weeksPerYear = 52;
+                const weeksPerYear = 52.1786; // More precise weeks per year
                 const ageRanges = {
                     high: [0, 35],
                     medium: [36, 50],
@@ -159,31 +160,45 @@
                 const energyWeeks = { high: 0, medium: 0, low: 0, veryLow: 0 };
 
                 for (const [key, range] of Object.entries(ageRanges)) {
-                    const startAge = Math.max(currentAge, range[0]);
-                    const endAge = Math.min(range[1], expectedAge);
-
-                    if (startAge <= endAge) {
-                        const yearsInRange = endAge - startAge;
-                        energyWeeks[key] = Math.max(yearsInRange * weeksPerYear, 0);
+                    const rangeStart = range[0];
+                    const rangeEnd = range[1];
+                    
+                    // Only calculate if current age is before the end of this range
+                    if (currentAge < rangeEnd) {
+                        // Start counting from current age if we're already in this range
+                        const effectiveStart = Math.max(currentAge, rangeStart);
+                        // End at the range end or expected age, whichever is smaller
+                        const effectiveEnd = Math.min(rangeEnd, expectedAge);
+                        
+                        if (effectiveStart < effectiveEnd) {
+                            const yearsInRange = effectiveEnd - effectiveStart;
+                            energyWeeks[key] = yearsInRange * weeksPerYear;
+                        }
                     }
                 }
 
                 return energyWeeks;
             },
             displayWeeksAndDays(weeks) {
-                const days = Math.floor((weeks % 1) * 7);
-                return `${Math.floor(weeks)} weeks${days > 0 ? ` and ${days} days` : ''}`;
+                const wholeWeeks = Math.floor(weeks);
+                const remainingDays = Math.floor((weeks - wholeWeeks) * 7);
+                return `${wholeWeeks} weeks${remainingDays > 0 ? ` and ${remainingDays} days` : ''}`;
             },
             updateCountdown(endDate) {
                 const now = new Date();
                 const diff = endDate - now;
 
+                if (diff <= 0) {
+                    this.countdown = { years: 0, months: 0, days: 0, hours: 0, minutes: 0, seconds: 0 };
+                    return;
+                }
+
                 this.countdown.years = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
-                this.countdown.months = Math.floor(diff % (365.25 * 24 * 60 * 60 * 1000) / (30.44 * 24 * 60 * 60 * 1000));
-                this.countdown.days = Math.floor(diff % (30.44 * 24 * 60 * 60 * 1000) / (24 * 60 * 60 * 1000));
-                this.countdown.hours = Math.floor(diff % (24 * 60 * 60 * 1000) / (60 * 60 * 1000));
-                this.countdown.minutes = Math.floor(diff % (60 * 60 * 1000) / (60 * 1000));
-                this.countdown.seconds = Math.floor(diff % (60 * 1000) / 1000);
+                this.countdown.months = Math.floor((diff % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000));
+                this.countdown.days = Math.floor((diff % (30.44 * 24 * 60 * 60 * 1000)) / (24 * 60 * 60 * 1000));
+                this.countdown.hours = Math.floor((diff % (24 * 60 * 60 * 1000)) / (60 * 60 * 1000));
+                this.countdown.minutes = Math.floor((diff % (60 * 60 * 1000)) / (60 * 1000));
+                this.countdown.seconds = Math.floor((diff % (60 * 1000)) / 1000);
             },
             autoUpdate() {
                 this.calculateWeeks();
